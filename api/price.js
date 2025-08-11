@@ -1,29 +1,40 @@
 export default async function handler(req, res) {
-  const { prdctClsfcNoNm = "복공판", pageNo = "1", numOfRows = "5" } = req.query;
+  // 안정적으로 URL 파라미터 가져오기
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const martNm = url.searchParams.get("prdctClsfcNoNm") || "복공판";
+  const pageNo = url.searchParams.get("pageNo") || "1";
+  const numOfRows = url.searchParams.get("numOfRows") || "5";
 
+  // G2B 인증키 (디코딩된 원본)
   const serviceKey = "Xjp+QO5t2SHf6kbPS4C8/MTuVesZAq4QmnkcE9iex00IHeL+rDxWRMJWhg/0vGyPvwhqcpqv/zxvXDTMSAZknQ==";
 
+  // URL 구성 및 디버깅 출력
   const g2bUrl = `https://apis.data.go.kr/1230000/ao/PriceInfoService/getPriceInfoListFcltyCmmnMtrilEngrk` +
     `?ServiceKey=${encodeURIComponent(serviceKey)}` +
     `&pageNo=${pageNo}` +
     `&numOfRows=${numOfRows}` +
     `&type=json` +
-    `&prdctClsfcNoNm=${encodeURIComponent(prdctClsfcNoNm)}`;
+    `&prdctClsfcNoNm=${encodeURIComponent(martNm)}`;
+
+  console.log("▶️ 호출 URL:", g2bUrl);
 
   try {
     const response = await fetch(g2bUrl);
     const data = await response.json();
 
-    if (!data.response?.body?.items?.item) {
+    const items = data?.response?.body?.items?.item;
+
+    if (!items || items.length === 0) {
       return res.status(200).json({
         message: "조회 결과가 없습니다.",
-        input: prdctClsfcNoNm,
+        input: martNm,
         result: []
       });
     }
 
     res.setHeader("Access-Control-Allow-Origin", "*");
-    return res.status(200).json(data);
+    return res.status(200).json({ message: "정상 조회", input: martNm, result: items });
+
   } catch (error) {
     return res.status(500).json({
       error: true,
